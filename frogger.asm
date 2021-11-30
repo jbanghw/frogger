@@ -3,7 +3,7 @@
 # CSC258H5S Fall 2021 Assembly Final Project
 # University of Toronto, St. George
 #
-# Student: Name, Student Number
+# Student: James Bang, 1002655343
 #
 # Bitmap Display Configuration:
 # - Unit width in pixels: 8
