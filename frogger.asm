@@ -1121,6 +1121,9 @@ logFrogLeftFastLoopExit:
 
 ### Beginning of moving with logs ###
 moveWithLogRight:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 	lw $t0, frog_x
 	addi $t0, $t0, 8
 	addi $t1, $zero, 240
@@ -1132,6 +1135,9 @@ moveWithLogRightMove:
 	j keyboardCheck
 
 moveWithLogLeft:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 	lw $t0, frog_x
 	addi $t0, $t0, -8
 	bge $t0, $zero, moveWithLogLeftMove
@@ -1142,6 +1148,9 @@ moveWithLogLeftMove:
 	j keyboardCheck
 
 moveWithLogRightFast:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 	lw $t0, frog_x
 	addi $t0, $t0, 16
 	addi $t1, $zero, 240
@@ -1153,6 +1162,9 @@ moveWithLogRightFastMove:
 	j keyboardCheck
 
 moveWithLogLeftFast:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 	lw $t0, frog_x
 	addi $t0, $t0, -12
 	bge $t0, $zero, moveWithLogLeftFastMove
@@ -1312,6 +1324,9 @@ drawLives0:
 	
 ### Death Process (sadge) ###
 deathProcess:
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
 	li $v0, 31
 	lw $a0, deathSound
 	lw $a1, deathSoundDuration
