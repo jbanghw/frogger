@@ -65,15 +65,19 @@
 	water_row3: .space 512
 	water_row4: .space 512
 	frog_pos: .space 64
-	success_zone1: .space 256
-	success_zone2: .space 256
-	success_zone3: .space 256
-	fail_zone: .space 256
+	success_zone1: .space 128
+	success_zone2: .space 128
+	success_zone3: .space 128
+	success_zone4: .space 128
+	success_zone5: .space 128
+	fail_zone: .space 384
 	
 	num_lives: .word 0x3
 	f1bool: .word 0x0
 	f2bool: .word 0x0
 	f3bool: .word 0x0
+	f4bool: .word 0x0
+	f5bool: .word 0x0
 	
 	movementSound: .word 60
 	movementSoundDuration: .word 100
@@ -116,6 +120,10 @@
 	winSoundInstrument: .word 10
 	winSoundDuration2: .word 600
 	
+	moveQueue: .word 0x0
+	
+	shouldRefresh: .word 0x1
+	
 	pausePrompt: .asciiz "Press P to continue...\n"
 
 
@@ -129,6 +137,11 @@ initialization: # initialize num_lives, f1bool, f2bool, f3bool
 	sw $zero, f1bool
 	sw $zero, f2bool
 	sw $zero, f3bool
+	sw $zero, f4bool
+	sw $zero, f5bool
+	sw $zero, moveQueue
+	addi $t0, $zero, 1
+	sw $t0, shouldRefresh
 
 ### Beginning of initial array filling ###
 fillSpaces:
@@ -220,7 +233,7 @@ fillSpaces:
 # fillFailInitial
 	la $t0, fail_zone
 	lw $t1, displayAddress
-	addi $t1, $t1, 2112
+	addi $t1, $t1, 2080
 	move $a0, $t0
 	move $a1, $t1
 	jal fillFail
@@ -234,35 +247,58 @@ fillSpaces:
 # fillSuccessInitial2
 	la $t0, success_zone2
 	lw $t1, displayAddress
-	addi $t1, $t1, 2144
+	addi $t1, $t1, 2104
 	move $a0, $t0
 	move $a1, $t1
 	jal fillSuccess
 # fillSuccessInitial3
 	la $t0, success_zone3
 	lw $t1, displayAddress
-	addi $t1, $t1, 2240
+	addi $t1, $t1, 2160
 	move $a0, $t0
 	move $a1, $t1
 	jal fillSuccess
-	j drawScene
+# fillSuccessInitial4
+	la $t0, success_zone4
+	lw $t1, displayAddress
+	addi $t1, $t1, 2216
+	move $a0, $t0
+	move $a1, $t1
+	jal fillSuccess
+# fillSuccessInitial5
+	la $t0, success_zone5
+	lw $t1, displayAddress
+	addi $t1, $t1, 2272
+	move $a0, $t0
+	move $a1, $t1
+	jal fillSuccess
 ### End of initial array filling ###
 
 ### Beginning of refreshing the scene
 refreshScene:
-	# Sleep for $a0 ms
+	# Sleep for 16 ms
 	li $v0, 32
-	li $a0, 500
+	li $a0, 16
 	syscall
 	
+	lw $t0, moveQueue
+	addi $t1, $zero, 6
+	bge $t0, $t1, reset
+
+
+postReset:
 	# Check if the player has filled all the goal regions
 	lw $t0, f1bool
 	lw $t1, f2bool
 	lw $t3, f3bool
+	lw $t4, f4bool
+	lw $t5, f5bool
 	add $t0, $t0, $t1
 	add $t0, $t0, $t3
-	addi $t4, $zero, 3
-	beq $t0, $t4, youWON # If all the goal regions are filled, go to winning end screen
+	add $t0, $t0, $t4
+	add $t0, $t0, $t5
+	addi $t6, $zero, 5
+	beq $t0, $t6, youWON # If all the goal regions are filled, go to winning end screen
 
 ### Filling the frog_pos array with the current position of the frog
 	lw $t9, frog_x # $t9 holds the frog's x-coordinate
@@ -383,74 +419,141 @@ respondToQ:
 
 # Move the objects in the arrays to be redrawn
 moveSpaces:
-# moveVehiclesRow1
+moveVehiclesRow1:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveVehiclesRow2
+
 	la $t9, vehicles_row1
 	lw $t8, displayAddress
 	addi $t8, $t8, 11264
-	jal moveObstaclesRightFastLoopSetup
-# moveVehiclesRow2
+	jal moveObstaclesRightLoopSetup
+moveVehiclesRow2:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveVehiclesRow3
+	
 	la $t9, vehicles_row2
 	lw $t8, displayAddress
 	addi $t8, $t8, 11264
 	jal moveObstaclesLeftLoopSetup
-# moveVehiclesRow3
+moveVehiclesRow3:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveVehiclesRow4
+	
 	la $t9, vehicles_row3
 	lw $t8, displayAddress
 	addi $t8, $t8, 13312
 	jal moveObstaclesRightLoopSetup
-# moveVehiclesRow4
+moveVehiclesRow4:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveWaterRow1
+
 	la $t9, vehicles_row4
 	lw $t8, displayAddress
 	addi $t8, $t8, 13312
-	jal moveObstaclesLeftFastLoopSetup
-# moveWaterRow1
+	jal moveObstaclesLeftLoopSetup
+moveWaterRow1:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveWaterRow2
+	
 	la $t9, water_row1
 	lw $t8, displayAddress
 	addi $t8, $t8, 4096
 	jal moveObstaclesRightLoopSetup
-# moveWaterRow2
+moveWaterRow2:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveWaterRow3
+	
 	la $t9, water_row2
 	lw $t8, displayAddress
 	addi $t8, $t8, 4096
 	jal moveObstaclesLeftLoopSetup
-# moveWaterRow3
+moveWaterRow3:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveWaterRow4
+
 	la $t9, water_row3
 	lw $t8, displayAddress
 	addi $t8, $t8, 6144
-	jal moveObstaclesRightFastLoopSetup
-# moveWaterRow4
+	jal moveObstaclesRightLoopSetup
+moveWaterRow4:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveLogsRow1
+
 	la $t9, water_row4
 	lw $t8, displayAddress
 	addi $t8, $t8, 6144
-	jal moveObstaclesLeftFastLoopSetup
-# moveLogsRow1
+	jal moveObstaclesLeftLoopSetup
+moveLogsRow1:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveLogsRow2
+	
 	la $t9, logs_row1
 	lw $t8, displayAddress
 	addi $t8, $t8, 4096
 	jal moveObstaclesRightLoopSetup
-# moveLogsRow2
+moveLogsRow2:
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveLogsRow3
+	
 	la $t9, logs_row2
 	lw $t8, displayAddress
 	addi $t8, $t8, 4096
 	jal moveObstaclesLeftLoopSetup
-# moveLogsRow3
+moveLogsRow3:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, moveLogsRow4
+
 	la $t9, logs_row3
 	lw $t8, displayAddress
 	addi $t8, $t8, 6144
-	jal moveObstaclesRightFastLoopSetup
-# moveLogsRow4
+	jal moveObstaclesRightLoopSetup
+moveLogsRow4:
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, drawScene
+
 	la $t9, logs_row4
 	lw $t8, displayAddress
 	addi $t8, $t8, 6144
-	jal moveObstaclesLeftFastLoopSetup
+	jal moveObstaclesLeftLoopSetup
 
 ### Draw the scene!
 drawScene:
-# drawGoalRegion
-	lw $t0, grassColor # set color to grassColor
-	addi $t1, $zero, 0 # from row 0
-	addi $t2, $zero, 16 # to row 8
-	jal drawRectangle
 # drawSafeRegion
 	lw $t0, safeColor # set color to safeColor
 	addi $t1, $zero, 28 # from row 16
@@ -466,16 +569,7 @@ drawScene:
 	addi $t1, $zero, 40 # from row 20
 	addi $t2, $zero, 16 # to row 28
 	jal drawRectangle
-# drawLives
-	lw $t0, livesColor # set color to livesColor
-	lw $t1, num_lives
-	addi $t2, $zero, 3
-	beq $t1, $t2, drawLives3
-	addi $t2, $zero, 2
-	beq $t1, $t2, drawLives2
-	addi $t2, $zero, 1
-	beq $t1, $t2, drawLives1
-	beq $t1, $zero, drawLives0
+
 
 # draw the obstacles
 drawObstacles:
@@ -540,6 +634,9 @@ drawObstacles:
 	lw $t5, logColor
 	jal drawObs
 
+
+
+
 # draw the fail zones
 	la $t9, fail_zone
 	lw $t7, displayAddress
@@ -561,28 +658,55 @@ drawObstacles:
 	lw $t7, displayAddress
 	lw $t5, pinkColor
 	jal drawSucc
-
+# draw success zone 4
+	la $t9, success_zone4
+	lw $t7, displayAddress
+	lw $t5, pinkColor
+	jal drawSucc
+# draw success zone 5
+	la $t9, success_zone5
+	lw $t7, displayAddress
+	lw $t5, pinkColor
+	jal drawSucc
+	
 # draw frogs in goal zones
 drawFrog1:
 	lw $t0, f1bool
 	beq $t0, $zero, drawFrog2
 	lw $t0, displayAddress # $t0 stores the base address for display
 	lw $t5, orangeColor # $t5 stores the color of the frog (purple)
-	sw $t5, 2072($t0)
-	sw $t5, 2076($t0)
-	sw $t5, 2080($t0)
-	sw $t5, 2084($t0)
-	sw $t5, 2332($t0)
-	sw $t5, 2336($t0)
-	sw $t5, 2588($t0)
-	sw $t5, 2592($t0)
-	sw $t5, 2584($t0)
-	sw $t5, 2596($t0)
-	sw $t5, 2840($t0)
-	sw $t5, 2852($t0)
+	sw $t5, 2056($t0)
+	sw $t5, 2060($t0)
+	sw $t5, 2064($t0)
+	sw $t5, 2068($t0)
+	sw $t5, 2316($t0)
+	sw $t5, 2320($t0)
+	sw $t5, 2572($t0)
+	sw $t5, 2576($t0)
+	sw $t5, 2568($t0)
+	sw $t5, 2580($t0)
+	sw $t5, 2824($t0)
+	sw $t5, 2836($t0)
 drawFrog2:
 	lw $t0, f2bool
 	beq $t0, $zero, drawFrog3
+	lw $t0, displayAddress # $t0 stores the base address for display
+	lw $t5, orangeColor # $t5 stores the color of the frog (purple)
+	sw $t5, 2112($t0)
+	sw $t5, 2116($t0)
+	sw $t5, 2120($t0)
+	sw $t5, 2124($t0)
+	sw $t5, 2372($t0)
+	sw $t5, 2376($t0)
+	sw $t5, 2628($t0)
+	sw $t5, 2632($t0)
+	sw $t5, 2624($t0)
+	sw $t5, 2636($t0)
+	sw $t5, 2880($t0)
+	sw $t5, 2892($t0)
+drawFrog3:
+	lw $t0, f3bool
+	beq $t0, $zero, drawFrog4
 	lw $t0, displayAddress # $t0 stores the base address for display
 	lw $t5, orangeColor # $t5 stores the color of the frog (purple)
 	sw $t5, 2168($t0)
@@ -597,31 +721,74 @@ drawFrog2:
 	sw $t5, 2692($t0)
 	sw $t5, 2936($t0)
 	sw $t5, 2948($t0)
-drawFrog3:
-	lw $t0, f3bool
-	beq $t0, $zero, drawScore
+drawFrog4:
+	lw $t0, f4bool
+	beq $t0, $zero, drawFrog5
 	lw $t0, displayAddress # $t0 stores the base address for display
 	lw $t5, orangeColor # $t5 stores the color of the frog (purple)
-	sw $t5, 2264($t0)
-	sw $t5, 2268($t0)
-	sw $t5, 2272($t0)
-	sw $t5, 2276($t0)
-	sw $t5, 2524($t0)
-	sw $t5, 2528($t0)
-	sw $t5, 2780($t0)
-	sw $t5, 2784($t0)
-	sw $t5, 2776($t0)
-	sw $t5, 2788($t0)
-	sw $t5, 3032($t0)
-	sw $t5, 3044($t0)
+	sw $t5, 2224($t0)
+	sw $t5, 2228($t0)
+	sw $t5, 2232($t0)
+	sw $t5, 2236($t0)
+	sw $t5, 2484($t0)
+	sw $t5, 2488($t0)
+	sw $t5, 2740($t0)
+	sw $t5, 2744($t0)
+	sw $t5, 2736($t0)
+	sw $t5, 2748($t0)
+	sw $t5, 2992($t0)
+	sw $t5, 3004($t0)
+drawFrog5:
+	lw $t0, f5bool
+	beq $t0, $zero, watDoink
+	lw $t0, displayAddress # $t0 stores the base address for display
+	lw $t5, orangeColor # $t5 stores the color of the frog (purple)
+	sw $t5, 2280($t0)
+	sw $t5, 2284($t0)
+	sw $t5, 2288($t0)
+	sw $t5, 2292($t0)
+	sw $t5, 2540($t0)
+	sw $t5, 2544($t0)
+	sw $t5, 2796($t0)
+	sw $t5, 2800($t0)
+	sw $t5, 2792($t0)
+	sw $t5, 2804($t0)
+	sw $t5, 3048($t0)
+	sw $t5, 3060($t0)
+
+### only refresh these if they need to be refreshed (through deathProcess & winCon
+watDoink:	
+	lw $t0, shouldRefresh
+	beq $t0, $zero, drawFrog
+	sw $zero, shouldRefresh
+# drawGoalRegion
+	lw $t0, grassColor # set color to grassColor
+	addi $t1, $zero, 0 # from row 0
+	addi $t2, $zero, 8 # to row 8
+	jal drawRectangle
+
+# drawLives
+	lw $t0, livesColor # set color to livesColor
+	lw $t1, num_lives
+	addi $t2, $zero, 3
+	beq $t1, $t2, drawLives3
+	addi $t2, $zero, 2
+	beq $t1, $t2, drawLives2
+	addi $t2, $zero, 1
+	beq $t1, $t2, drawLives1
+	beq $t1, $zero, drawLives0
 
 # Draw the score in the top right corner
 drawScore:
 	lw $t1, f1bool
 	lw $t2, f2bool
 	lw $t3, f3bool
+	lw $t4, f4bool
+	lw $t5, f5bool
 	add $t1, $t1, $t2
 	add $t1, $t1, $t3
+	add $t1, $t1, $t4
+	add $t1, $t1, $t5
 	addi $t2, $zero, 100
 	mul $t1, $t1, $t2
 	beq $t1, $zero, drawZero
@@ -630,6 +797,11 @@ drawScore:
 	beq $t1, $t2, drawTwoHundred
 	addi $t2, $zero, 300
 	beq $t1, $t2, drawThreeHundred
+	addi $t2, $zero, 400
+	beq $t1, $t2, drawFourHundred
+	
+
+
 
 # Finally, draw the frog!
 drawFrog:
@@ -653,6 +825,9 @@ drawFrog:
 	sw $t5, 772($t9)
 	sw $t5, 776($t9)
 	sw $t5, 780($t9)
+	lw $t0, moveQueue
+	addi $t0, $t0, 1
+	sw $t0, moveQueue
 	j refreshScene
 
 
@@ -738,7 +913,7 @@ fillFail: # fill a fail_zone array stored at $a0 with pixel address starting fro
 	addi $sp, $sp, 4
 	
 	addi $a2, $a1, 256
-	addi $a3, $a0, 32
+	addi $a3, $a0, 24
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillFailLoopSetup
@@ -746,7 +921,7 @@ fillFail: # fill a fail_zone array stored at $a0 with pixel address starting fro
 	addi $sp, $sp, 4
 	
 	addi $a2, $a1, 512
-	addi $a3, $a0, 64
+	addi $a3, $a0, 48
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillFailLoopSetup
@@ -754,6 +929,14 @@ fillFail: # fill a fail_zone array stored at $a0 with pixel address starting fro
 	addi $sp, $sp, 4
 	
 	addi $a2, $a1, 768
+	addi $a3, $a0, 72
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 56
 	addi $a3, $a0, 96
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -761,23 +944,31 @@ fillFail: # fill a fail_zone array stored at $a0 with pixel address starting fro
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
-	addi $a2, $a1, 96
-	addi $a3, $a0, 128
+	addi $a2, $a1, 312
+	addi $a3, $a0, 120
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillFailLoopSetup
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
-	addi $a2, $a1, 352
-	addi $a3, $a0, 160
+	addi $a2, $a1, 568
+	addi $a3, $a0, 144
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillFailLoopSetup
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
-	addi $a2, $a1, 608
+	addi $a2, $a1, 824
+	addi $a3, $a0, 168
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+#
+	addi $a2, $a1, 112
 	addi $a3, $a0, 192
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
@@ -785,8 +976,56 @@ fillFail: # fill a fail_zone array stored at $a0 with pixel address starting fro
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
-	addi $a2, $a1, 864
-	addi $a3, $a0, 224
+	addi $a2, $a1, 368
+	addi $a3, $a0, 216
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 624
+	addi $a3, $a0, 240
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 880
+	addi $a3, $a0, 264
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+#
+	addi $a2, $a1, 168
+	addi $a3, $a0, 288
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 424
+	addi $a3, $a0, 312
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 680
+	addi $a3, $a0, 336
+	addi $sp, $sp, -4
+	sw $ra, 0($sp)
+	jal fillFailLoopSetup
+	lw $ra, 0($sp)
+	addi $sp, $sp, 4
+	
+	addi $a2, $a1, 936
+	addi $a3, $a0, 360
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillFailLoopSetup
@@ -805,7 +1044,7 @@ fillSuccess: # fill the success_zone array stored at $a0 with pixel address star
 	addi $sp, $sp, 4
 
 	addi $a2, $a1, 256
-	addi $a3, $a0, 64
+	addi $a3, $a0, 32
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillSuccessLoopSetup
@@ -813,7 +1052,7 @@ fillSuccess: # fill the success_zone array stored at $a0 with pixel address star
 	addi $sp, $sp, 4
 
 	addi $a2, $a1, 512
-	addi $a3, $a0, 128
+	addi $a3, $a0, 64
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillSuccessLoopSetup
@@ -821,7 +1060,7 @@ fillSuccess: # fill the success_zone array stored at $a0 with pixel address star
 	addi $sp, $sp, 4
 
 	addi $a2, $a1, 768
-	addi $a3, $a0, 192
+	addi $a3, $a0, 96
 	addi $sp, $sp, -4
 	sw $ra, 0($sp)
 	jal fillSuccessLoopSetup
@@ -850,7 +1089,7 @@ fillObstaclesQuit:
 
 fillFailLoopSetup:
 	add $t0, $zero, $zero
-	add $t1, $zero, 8
+	add $t1, $zero, 6
 fillFailLoop:
 	beq $t0, $t1, fillFailQuit
 	addi $t2, $zero, 4
@@ -865,7 +1104,7 @@ fillFailQuit:
 	
 fillSuccessLoopSetup:
 	add $t0, $zero, $zero
-	add $t1, $zero, 16
+	add $t1, $zero, 8
 fillSuccessLoop:
 	beq $t0, $t1, fillSuccessQuit
 	addi $t2, $zero, 4
@@ -927,7 +1166,7 @@ collisionDetectionLoopExit:
 
 failDetectionLoopSetup:
 	add $t0, $zero, $zero # $t0 = 0
-	addi $t1, $zero, 64 # $t1 = 128
+	addi $t1, $zero, 96 # $t1 = 128
 failDetectionLoop:
 	beq $t0, $t1, failDetectionLoopExit # while $t0 < $t1
 	addi $t2, $zero, 4
@@ -1123,9 +1362,15 @@ logFrogLeftFastLoopExit:
 moveWithLogRight:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
+
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, keyboardCheck
 	
 	lw $t0, frog_x
-	addi $t0, $t0, 8
+	addi $t0, $t0, 4
 	addi $t1, $zero, 240
 	ble $t0, $t1, moveWithLogRightMove
 	sw $t1, frog_x
@@ -1137,9 +1382,15 @@ moveWithLogRightMove:
 moveWithLogLeft:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
+
+	addi $t0, $zero, 8
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, keyboardCheck
 	
 	lw $t0, frog_x
-	addi $t0, $t0, -8
+	addi $t0, $t0, -4
 	bge $t0, $zero, moveWithLogLeftMove
 	sw $zero, frog_x
 	j keyboardCheck
@@ -1151,8 +1402,14 @@ moveWithLogRightFast:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, keyboardCheck
+	
 	lw $t0, frog_x
-	addi $t0, $t0, 16
+	addi $t0, $t0, 4
 	addi $t1, $zero, 240
 	ble $t0, $t1, moveWithLogRightFastMove
 	sw $t1, frog_x
@@ -1165,8 +1422,14 @@ moveWithLogLeftFast:
 	lw $ra, 0($sp)
 	addi $sp, $sp, 4
 	
+	addi $t0, $zero, 4
+	lw $t1, moveQueue
+	div $t1, $t0
+	mfhi $t0
+	bne $t0, $zero, keyboardCheck	
+	
 	lw $t0, frog_x
-	addi $t0, $t0, -12
+	addi $t0, $t0, -4
 	bge $t0, $zero, moveWithLogLeftFastMove
 	sw $zero, frog_x
 	j keyboardCheck
@@ -1186,7 +1449,7 @@ moveObstaclesRightLoop:
 	mul $t3, $t0, $t2
 	add $t4, $t9, $t3 # address where it needs to change
 	lw $t5, 0($t4) # get the value the memory was holding at that address and store in $t5
-	addi $t5, $t5, 8 # add 8 to that value
+	addi $t5, $t5, 4 # add 8 to that value
 	bge $t5, $t8, moveObstaclesRightLoopElse
 	sw $t5, 0($t4)
 	addi $t0, $t0, 1
@@ -1199,27 +1462,6 @@ moveObstaclesRightLoopElse:
 moveObstaclesRightQuit:
 	jr $ra
 
-moveObstaclesRightFastLoopSetup: # change the values in the array at $t9 by adding the value 4 but if it exceeds the value at $t8, subtract 1024
-	add $t0, $zero, $zero
-	add $t1, $zero, 128
-moveObstaclesRightFastLoop:
-	beq $t0, $t1, moveObstaclesRightFastQuit
-	addi $t2, $zero, 4
-	mul $t3, $t0, $t2
-	add $t4, $t9, $t3 # address where it needs to change
-	lw $t5, 0($t4) # get the value the memory was holding at that address and store in $t5
-	addi $t5, $t5, 16 # add 12 to that value
-	bge $t5, $t8, moveObstaclesRightFastLoopElse
-	sw $t5, 0($t4)
-	addi $t0, $t0, 1
-	j moveObstaclesRightFastLoop
-moveObstaclesRightFastLoopElse:
-	addi $t5, $t5, -1024
-	sw $t5, 0($t4)
-	addi $t0, $t0, 1
-	j moveObstaclesRightFastLoop
-moveObstaclesRightFastQuit:
-	jr $ra
 
 moveObstaclesLeftLoopSetup: # change the values in the array at $t9 by adding the value -4 but if it goes below the value at $t8, add 1024
 	add $t0, $zero, $zero
@@ -1230,7 +1472,7 @@ moveObstaclesLeftLoop:
 	mul $t3, $t0, $t2
 	add $t4, $t9, $t3 # address where it needs to change
 	lw $t5, 0($t4) # get the value the memory was holding at that address and store in $t5
-	addi $t5, $t5, -8 # add -4 to that value
+	addi $t5, $t5, -4 # add -8 to that value
 	blt $t5, $t8, moveObstaclesLeftLoopElse
 	sw $t5, 0($t4)
 	addi $t0, $t0, 1
@@ -1241,28 +1483,6 @@ moveObstaclesLeftLoopElse:
 	addi $t0, $t0, 1
 	j moveObstaclesLeftLoop
 moveObstaclesLeftQuit:
-	jr $ra
-
-moveObstaclesLeftFastLoopSetup: # change the values in the array at $t9 by adding the value 4 but if it exceeds the value at $t8, subtract 512
-	add $t0, $zero, $zero
-	add $t1, $zero, 128
-moveObstaclesLeftFastLoop:
-	beq $t0, $t1, moveObstaclesLeftFastQuit
-	addi $t2, $zero, 4
-	mul $t3, $t0, $t2
-	add $t4, $t9, $t3 # address where it needs to change
-	lw $t5, 0($t4) # get the value the memory was holding at that address and store in $t5
-	addi $t5, $t5, -12 # add 4 to that value
-	blt $t5, $t8, moveObstaclesLeftFastLoopElse
-	sw $t5, 0($t4)
-	addi $t0, $t0, 1
-	j moveObstaclesLeftFastLoop
-moveObstaclesLeftFastLoopElse:
-	addi $t5, $t5, 1024
-	sw $t5, 0($t4)
-	addi $t0, $t0, 1
-	j moveObstaclesLeftFastLoop
-moveObstaclesLeftFastQuit:
 	jr $ra
 ### End of obstacle movement loops ###
 
@@ -1281,7 +1501,7 @@ drawLives3:
 	sw $t0, 1024($t9)
 	sw $t0, 1028($t9)
 	sw $t0, 1032($t9)
-	j drawObstacles
+	j drawScore
 drawLives2:
 	lw $t9, displayAddress
 	sw $t0, 0($t9)
@@ -1295,7 +1515,7 @@ drawLives2:
 	sw $t0, 1024($t9)
 	sw $t0, 1028($t9)
 	sw $t0, 1032($t9)
-	j drawObstacles
+	j drawScore
 drawLives1:
 	lw $t9, displayAddress
 	sw $t0, 8($t9)
@@ -1303,7 +1523,7 @@ drawLives1:
 	sw $t0, 520($t9)
 	sw $t0, 776($t9)
 	sw $t0, 1032($t9)
-	j drawObstacles
+	j drawScore
 drawLives0:
 	lw $t9, displayAddress
 	sw $t0, 0($t9)
@@ -1318,7 +1538,7 @@ drawLives0:
 	sw $t0, 776($t9)
 	sw $t0, 520($t9)
 	sw $t0, 264($t9)
-	j drawObstacles
+	j drawScore
 ### End of drawing the number of lives left ###
 	
 	
@@ -1342,6 +1562,10 @@ deathProcess:
 	addi $t2, $t2, -1
 	blt $t2, $zero, playGameEndSound
 	sw $t2, num_lives
+	
+	addi $t9, $zero, 1
+	sw $t9, shouldRefresh
+	
 	j fillSpaces
 ### Death Process (sadge) ###
 
@@ -1419,12 +1643,19 @@ playMovementSound:
 	
 ### Beginning of win condition (possible fail) ###
 winCon:
+	addi $t9, $zero, 1
+	sw $t9, shouldRefresh
+	
 	lw $t0, frog_x
-	addi $t1, $zero, 64
+	addi $t1, $zero, 32
 	ble $t0, $t1, f1YAY
-	addi $t1, $zero, 160
+	addi $t1, $zero, 88
 	ble $t0, $t1, f2YAY
-	j f3YAY
+	addi $t1, $zero, 144
+	ble $t0, $t1, f3YAY
+	addi $t1, $zero, 200
+	ble $t0, $t1, f4YAY
+	j f5YAY
 
 f1YAY:
 	addi $t1, $zero, 1
@@ -1462,6 +1693,34 @@ f3YAY:
 	jal playGoalSound
 	
 	sw $t1, f3bool
+	lw $t3, frog_x_initial
+	lw $t4, frog_y_initial
+	sw $t3, frog_x
+	sw $t4, frog_y
+	j fillSpaces
+
+f4YAY:
+	addi $t1, $zero, 1
+	lw $t2, f4bool
+	bne $t2, $zero, deathProcess
+	
+	jal playGoalSound
+	
+	sw $t1, f4bool
+	lw $t3, frog_x_initial
+	lw $t4, frog_y_initial
+	sw $t3, frog_x
+	sw $t4, frog_y
+	j fillSpaces
+
+f5YAY:
+	addi $t1, $zero, 1
+	lw $t2, f5bool
+	bne $t2, $zero, deathProcess
+	
+	jal playGoalSound
+	
+	sw $t1, f5bool
 	lw $t3, frog_x_initial
 	lw $t4, frog_y_initial
 	sw $t3, frog_x
@@ -1607,13 +1866,53 @@ drawThreeHundred:
 	sw $t9, 1240($t5)
 	sw $t9, 1244($t5)
 	j drawFrog
+
+drawFourHundred:
+	lw $t9, waterColor # set color to livesColor
+	lw $t5, displayAddress
+	sw $t9, 244($t5)
+	sw $t9, 248($t5)
+	sw $t9, 252($t5)
+	sw $t9, 508($t5)
+	sw $t9, 764($t5)
+	sw $t9, 1020($t5)
+	sw $t9, 1276($t5)
+	sw $t9, 1272($t5)
+	sw $t9, 1268($t5)
+	sw $t9, 1012($t5)
+	sw $t9, 756($t5)
+	sw $t9, 500($t5) # far right 0
+
+	sw $t9, 228($t5)
+	sw $t9, 232($t5)
+	sw $t9, 236($t5)
+	sw $t9, 492($t5)
+	sw $t9, 748($t5)
+	sw $t9, 1004($t5)
+	sw $t9, 1260($t5)
+	sw $t9, 1256($t5)
+	sw $t9, 1252($t5)
+	sw $t9, 996($t5)
+	sw $t9, 740($t5)
+	sw $t9, 484($t5) # middle 0
+	
+	sw $t9, 212($t5)
+	sw $t9, 468($t5)
+	sw $t9, 724($t5)
+	sw $t9, 728($t5)
+	sw $t9, 732($t5)
+	sw $t9, 476($t5)
+	sw $t9, 220($t5)
+	sw $t9, 988($t5)
+	sw $t9, 1244($t5)
+	j drawFrog
 ### End of drawing the points ###
 	
 	
-### Beginning of drawing the beautiful scenery ###
+### Beginning of drawing the beautiful scenery kappa ###
 drawSucc: # draw the space $t9 (size 256 bytes) with color $t5
 	add $t0, $zero, $zero
-	addi $t1, $zero, 64
+	addi $t1, $zero, 32
 drawSuccLoop:
 	beq $t0, $t1, drawSuccQuit
 	add $t3, $zero, 4
@@ -1628,7 +1927,7 @@ drawSuccQuit:
 
 drawFail: # draw the space $t9 (size 1024 bytes) with color $t5
 	add $t0, $zero, $zero
-	addi $t1, $zero, 64
+	addi $t1, $zero, 96
 drawFailLoop:
 	beq $t0, $t1, drawFailQuit
 	add $t3, $zero, 4
@@ -1706,7 +2005,7 @@ youWON:
 	syscall
 	
 # now a sick screen to let you know you won (yes this is pretty bad)
-	addi $t1, $zero, 300
+	addi $t1, $zero, 500
 	addi $t4, $zero, 16384
 	add $t2, $zero, $zero
 	lw $t5, displayAddress
@@ -1924,12 +2223,18 @@ endScreen:
 	lw $t1, f1bool
 	lw $t2, f2bool
 	lw $t3, f3bool
-	addi $t4, $zero, 100
-	mul $t1, $t1, $t4
-	mul $t2, $t2, $t4
-	mul $t3, $t3, $t4
+	lw $t4, f4bool
+	lw $t5, f5bool
+	addi $t6, $zero, 100
+	mul $t1, $t1, $t6
+	mul $t2, $t2, $t6
+	mul $t3, $t3, $t6
+	mul $t4, $t4, $t6
+	mul $t5, $t5, $t6
 	add $t1, $t1, $t2
-	add $t1, $t1, $t3 # $t1 holds the points the user ended with
+	add $t1, $t1, $t3
+	add $t1, $t1, $t4
+	add $t1, $t1, $t5 # $t1 holds the points the user ended with
 	addi $t4, $zero, 16384
 	add $t2, $zero, $zero
 	lw $t5, displayAddress
@@ -2071,6 +2376,82 @@ endMessage:
 	ble $t1, $t2, two_hundred_pts
 	addi $t2, $zero, 300
 	ble $t1, $t2, three_hundred_pts
+	addi $t2, $zero, 400
+	ble $t1, $t2, four_hundred_pts
+	addi $t2, $zero, 500
+	ble $t1, $t2, five_hundred_pts
+five_hundred_pts:
+	sw $t9, 3104($t5)
+	sw $t9, 3108($t5)
+	sw $t9, 3360($t5)
+	sw $t9, 3616($t5)
+	sw $t9, 3620($t5)
+	sw $t9, 3624($t5)
+	sw $t9, 3112($t5)
+	sw $t9, 3880($t5)
+	sw $t9, 4136($t5)
+	sw $t9, 4132($t5)
+	sw $t9, 4128($t5) # 5
+	sw $t9, 3124($t5)
+	sw $t9, 3128($t5)
+	sw $t9, 3132($t5)
+	sw $t9, 3388($t5)
+	sw $t9, 3644($t5)
+	sw $t9, 3900($t5)
+	sw $t9, 4156($t5)
+	sw $t9, 4152($t5)
+	sw $t9, 4148($t5)
+	sw $t9, 3892($t5)
+	sw $t9, 3636($t5)
+	sw $t9, 3380($t5) # 0
+	sw $t9, 3144($t5)
+	sw $t9, 3148($t5)
+	sw $t9, 3152($t5)
+	sw $t9, 3408($t5)
+	sw $t9, 3664($t5)
+	sw $t9, 3920($t5)
+	sw $t9, 4176($t5)
+	sw $t9, 4172($t5)
+	sw $t9, 4168($t5)
+	sw $t9, 3912($t5)
+	sw $t9, 3656($t5)
+	sw $t9, 3400($t5) # 0
+	j endScreenCheck
+four_hundred_pts:
+	sw $t9, 3104($t5)
+	sw $t9, 3360($t5)
+	sw $t9, 3616($t5)
+	sw $t9, 3620($t5)
+	sw $t9, 3624($t5)
+	sw $t9, 3368($t5)
+	sw $t9, 3112($t5)
+	sw $t9, 3880($t5)
+	sw $t9, 4136($t5) # 4
+	sw $t9, 3124($t5)
+	sw $t9, 3128($t5)
+	sw $t9, 3132($t5)
+	sw $t9, 3388($t5)
+	sw $t9, 3644($t5)
+	sw $t9, 3900($t5)
+	sw $t9, 4156($t5)
+	sw $t9, 4152($t5)
+	sw $t9, 4148($t5)
+	sw $t9, 3892($t5)
+	sw $t9, 3636($t5)
+	sw $t9, 3380($t5) # 0
+	sw $t9, 3144($t5)
+	sw $t9, 3148($t5)
+	sw $t9, 3152($t5)
+	sw $t9, 3408($t5)
+	sw $t9, 3664($t5)
+	sw $t9, 3920($t5)
+	sw $t9, 4176($t5)
+	sw $t9, 4172($t5)
+	sw $t9, 4168($t5)
+	sw $t9, 3912($t5)
+	sw $t9, 3656($t5)
+	sw $t9, 3400($t5) # 0
+	j endScreenCheck
 three_hundred_pts:
 	sw $t9, 3104($t5)
 	sw $t9, 3108($t5)
@@ -2208,6 +2589,11 @@ respondToR:
 	j initialization
 respondToQEND:
 	j Exit
+
+# resetting the moveQueue
+reset:
+	sw $zero, moveQueue
+	j postReset
 	
 
 # when the user pauses
