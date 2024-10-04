@@ -1,35 +1,10 @@
 #####################################################################
-#
-# CSC258H5S Fall 2021 Assembly Final Project
-# University of Toronto, St. George
-#
-# Student: James Bang, 1002655343
-#
 # Bitmap Display Configuration:
 # - Unit width in pixels: 8
 # - Unit height in pixels: 8
 # - Display width in pixels: 512
 # - Display height in pixels: 512
 # - Base Address for Display: 0x10008000 ($gp)
-#
-# Which milestone is reached in this submission?
-# (See the assignment handout for descriptions of the milestones)
-# - Milestone [5] (choose the one the applies)
-#
-# Which approved additional features have been implemented?
-# (See the assignment handout for the list of additional features)
-# Easy Features
-# 1. Display the number of lives remaining.
-# 2. After final player death, display game over/retry screen. Restart the game if the “retry” option is chosen.
-# 3. Have objects in different rows move at different speeds.
-# 4. Add a third row in each of the water and road sections.
-# Hard Features
-# 5. Add sound effects for movement, collisions, game end and reaching the goal area.
-# 6. Display the player’s score at the top of the screen.
-#
-# Any additional information that the TA needs to know:
-# - pressing 'p' pauses the game but the dialogue shows up in the Run I/O section
-#
 #####################################################################
 
 .data
